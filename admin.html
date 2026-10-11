@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Admin - FF Akun Store</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="logo" href="index.html">IYAN STORE</a>
+    <nav><a href="stok.html">Lihat stok</a><a href="admin.html" class="aktif">Admin</a></nav>
+  </header>
+
+  <main>
+    <h1 class="judul-halaman">Kelola akun</h1>
+
+    <form id="login" class="form">
+      <label>Password admin <input type="password" id="pw" required></label>
+      <button class="tombol">Masuk</button>
+      <p class="catatan" id="pesan-login"></p>
+    </form>
+
+    <div id="panel" hidden>
+      <form id="tambah" class="form">
+        <h2 id="judul-form">Tambah akun</h2>
+        <input type="hidden" name="id" id="edit-id">
+        <label>Nama akun <input name="nama" required placeholder="Akun Sultan Booyah"></label>
+        <div class="dua">
+          <label>Level <input name="level" type="number" min="0"></label>
+          <label>Rank <input name="rank" placeholder="Heroic"></label>
+        </div>
+        <label>Skin / isi akun <input name="skin" placeholder="Bundle Elite, Skin AWM"></label>
+        <div class="dua">
+          <label>Harga (Rp) <input name="harga" type="number" min="0" required></label>
+          <label>Status
+            <select name="status"><option value="tersedia">Tersedia</option><option value="terjual">Terjual</option></select>
+          </label>
+        </div>
+        <div id="preview" class="preview" hidden><img id="preview-img" alt=""><span>Foto saat ini. Pilih file baru hanya jika ingin menggantinya.</span></div>
+        <label>Screenshot (JPG/PNG/WebP, maks 8 MB) <input name="gambar" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <div class="aksi"><button class="tombol" id="btn-simpan">Simpan akun</button><button type="button" class="tombol tombol-garis" id="btn-batal" hidden>Batal</button></div>
+        <p class="catatan" id="pesan-tambah"></p>
+      </form>
+
+      <h2 class="sub">Daftar akun</h2>
+      <div id="tabel"></div>
+      <button class="tombol tombol-garis" id="keluar">Keluar</button>
+    </div>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const rupiah = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+    async function api(aksi, body) {
+      const r = await fetch('api.php?aksi=' + aksi, body ? { method: 'POST', body } : {});
+      const d = await r.json().catch(() => ({ error: 'Server tidak merespons. Pastikan Apache dan MySQL di XAMPP sudah Start.' }));
+      if (r.status === 401 && aksi !== 'login') { tampil(false); throw new Error('Sesi habis, silakan masuk lagi'); }
+      if (!r.ok) throw new Error(d.error || 'Terjadi kesalahan');
+      return d;
+    }
+    const form = obj => { const f = new FormData(); for (const k in obj) f.append(k, obj[k]); return f; };
+
+    function tampil(masuk) {
+      $('login').hidden = masuk;
+      $('panel').hidden = !masuk;
+      if (masuk) muat();
+    }
+
+    $('login').onsubmit = async e => {
+      e.preventDefault();
+      try {
+        await api('login', form({ password: $('pw').value }));
+        $('pw').value = ''; $('pesan-login').textContent = ''; tampil(true);
+      } catch (err) { $('pesan-login').textContent = err.message; }
+    };
+    $('keluar').onclick = async () => { await api('logout', form({})); tampil(false); };
+
+    let dataAkun = [];
+    function modeTambah() {
+      $('tambah').reset(); $('edit-id').value = '';
+      $('judul-form').textContent = 'Tambah akun'; $('btn-simpan').textContent = 'Simpan akun';
+      $('btn-batal').hidden = true; $('preview').hidden = true;
+    }
+    function modeEdit(a) {
+      const f = $('tambah');
+      for (const k of ['nama', 'level', 'rank', 'skin', 'harga', 'status']) f.elements[k].value = a[k];
+      f.elements.gambar.value = '';
+      $('edit-id').value = a.id;
+      $('judul-form').textContent = 'Edit akun FF-' + String(a.id).padStart(3, '0');
+      $('btn-simpan').textContent = 'Simpan perubahan'; $('btn-batal').hidden = false;
+      $('preview').hidden = !a.gambar;
+      if (a.gambar) $('preview-img').src = 'uploads/' + a.gambar;
+      $('pesan-tambah').textContent = '';
+      f.scrollIntoView({ behavior: 'smooth' });
+    }
+    $('btn-batal').onclick = () => { modeTambah(); $('pesan-tambah').textContent = ''; };
+
+    $('tambah').onsubmit = async e => {
+      e.preventDefault();
+      const edit = !!$('edit-id').value;
+      try {
+        await api(edit ? 'ubah' : 'tambah', new FormData(e.target));
+        modeTambah();
+        $('pesan-tambah').textContent = edit ? 'Perubahan tersimpan.' : 'Akun tersimpan.';
+        muat();
+      } catch (err) { $('pesan-tambah').textContent = err.message; }
+    };
+
+    async function muat() {
+      const data = await api('daftar');
+      dataAkun = data;
+      $('tabel').innerHTML = data.length ? data.map(a => `
+        <div class="baris-admin">
+          <img src="${a.gambar ? 'uploads/' + esc(a.gambar) : ''}" alt="" onerror="this.style.visibility='hidden'">
+          <div>
+            <strong>FF-${String(a.id).padStart(3, '0')} · ${esc(a.nama)}</strong>
+            <span>${a.harga > 0 ? rupiah(a.harga) : 'Harga belum diisi'} · ${esc(a.rank)} · <b class="${a.status}">${a.status}</b></span>
+          </div>
+          <div class="aksi-baris">
+            <button class="kecil" data-edit="${a.id}">Edit</button>
+            <button class="kecil" data-ubah="${a.id}" data-status="${a.status === 'tersedia' ? 'terjual' : 'tersedia'}">
+              Tandai ${a.status === 'tersedia' ? 'terjual' : 'tersedia'}</button>
+            <button class="kecil" data-harga="${a.id}" data-nilai="${a.harga}">Ubah harga</button>
+            <button class="kecil bahaya" data-hapus="${a.id}">Hapus</button>
+          </div>
+        </div>`).join('') : '<p class="catatan">Belum ada akun. Tambahkan lewat formulir di atas.</p>';
+    }
+
+    $('tabel').onclick = async e => {
+      const b = e.target.closest('button'); if (!b) return;
+      try {
+        if (b.dataset.edit) {
+          modeEdit(dataAkun.find(x => String(x.id) === b.dataset.edit)); return;
+        } else if (b.dataset.hapus) {
+          if (!confirm('Hapus akun ini beserta screenshot-nya?')) return;
+          await api('hapus', form({ id: b.dataset.hapus }));
+        } else if (b.dataset.harga) {
+          const v = prompt('Harga baru (angka saja, tanpa titik):', b.dataset.nilai);
+          if (v === null) return;
+          await api('ubah', form({ id: b.dataset.harga, harga: v.replace(/\D/g, '') || 0 }));
+        } else if (b.dataset.ubah) {
+          await api('ubah', form({ id: b.dataset.ubah, status: b.dataset.status }));
+        }
+        muat();
+      } catch (err) { alert(err.message); }
+    };
+
+    fetch('api.php?aksi=cek').then(r => r.json()).then(d => tampil(!!d.login)).catch(() => tampil(false));
+  </script>
+</body>
+</html>

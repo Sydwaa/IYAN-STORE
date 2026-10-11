@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stok Akun Free Fire</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="logo" href="index.html">IYAN STORE</a>
+    <nav>
+      <a href="index.html">Beranda</a>
+      <a href="stok.html" class="aktif">Stok Akun</a>
+      <a href="kontak.html">Kontak</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1 class="judul-halaman">Stok akun</h1>
+    <div class="filter" id="filter">
+      <button class="aktif" data-status="semua">Semua</button>
+      <button data-status="tersedia">Tersedia</button>
+      <button data-status="terjual">Terjual</button>
+    </div>
+    <div class="grid" id="daftar-akun"></div>
+  </main>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="tutup" id="tutup" aria-label="Tutup">Tutup</button>
+    <img id="lightbox-img" alt="Screenshot akun">
+  </div>
+
+  <footer>© 2026 IYAN STORE</footer>
+  <script src="script.js"></script>
+</body>
+</html>
